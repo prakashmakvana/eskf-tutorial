@@ -1,28 +1,60 @@
-# Error-State Kalman Filter (ESKF): a hands-on tutorial
+# The Error-State Kalman Filter for temporally consistent 6D pose estimation
 
-A single Jupyter notebook that builds an **Error-State Kalman Filter** for IMU + 6D pose fusion
-from first principles. The filter is written as a handful of short functions, each one right after
-its equation and followed by a small test. The Jacobians are verified numerically, the filter
-runs on a dataset, and its statistical consistency is tested.
+A single Jupyter notebook that explains the **Error-State Kalman Filter (ESKF)** through a
+concrete problem: turning the output of a per-frame 6D object pose estimator into a
+**temporally consistent** track.
+
+A per-frame estimator looks at every image on its own. Its output jitters from frame to frame,
+is sometimes completely wrong, can flip between symmetric solutions, and is missing whenever the
+object is not detected. The notebook builds an ESKF step by step, as short functions, each
+followed by a small test, and shows how every part of the filter addresses one of these problems.
 
 It is written in the spirit of Roger Labbe's
 [Kalman and Bayesian Filters in Python](https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python)
-(chapter 11, EKF) and follows the notation and equation numbers of
-J. Solà, [*Quaternion kinematics for the error-state Kalman filter*](https://arxiv.org/abs/1711.02508) (2017).
+and follows the notation of J. Solà,
+[*Quaternion kinematics for the error-state Kalman filter*](https://arxiv.org/abs/1711.02508) (2017).
 
-## Contents
+## Results on the simulated sequence
+
+| | pos RMSE | rot RMSE | pos jitter | rot jitter |
+|---|---|---|---|---|
+| raw per-frame estimates | 6.78 cm | 14.71° | 9.40 cm | 52.24° |
+| naive filter (accepts every estimate) | 2.20 cm | 14.59° | 0.77 cm | 6.11° |
+| robust ESKF (symmetry + gating) | 1.55 cm | 2.88° | 0.41 cm | 0.78° |
+| RTS smoother (offline, uses future frames) | 0.55 cm | 0.99° | 0.02 cm | 0.06° |
+
+Jitter measures how much the frame-to-frame motion of a track differs from the true
+frame-to-frame motion. Rotation errors are measured up to the object's symmetry.
+
+## Contents of the notebook
+
+1. The problem (jitter, outliers, symmetry flips, dropouts) and the idea of filtering
+2. Why an *error-state* filter for poses
+3. A small quaternion toolbox, built one function at a time
+4. The data: a simulated per-frame pose estimator, and how to measure temporal consistency
+5. True, nominal and error state
+6. Prediction with a constant-velocity model, how uncertainty grows during a dropout, and a numerical check of the Jacobian
+7. Correction with per-frame measurement uncertainty: why good frames get more weight than bad ones
+8. A first, naive filter
+9. Robustness: symmetry resolution, NIS gating and re-initialisation
+10. Results: accuracy, jitter and honest ±3σ bounds
+11. Tuning the process noise: smoothness versus lag
+12. Consistency tests with NEES and NIS
+13. Filter versus RTS smoother, and the link to factor-graph optimisation
+14. Summary and references
+
+## Files
 
 ```
-ESKF_tutorial.ipynb        the complete tutorial: theory, code, plots, consistency tests
+ESKF_tutorial.ipynb        the complete tutorial
 data/
-  imu.csv                  t, ax, ay, az, wx, wy, wz               (body frame)
-  pose_measurements.csv    t, px, py, pz, qw, qx, qy, qz
-  ground_truth.csv         t, p, v, q, accel bias, gyro bias
+  ground_truth.csv         t, p, v, q, w      true object pose and velocities in the camera frame
+  pose_estimates.csv       t, valid, kind, px, py, pz, qw, qx, qy, qz, sigma_p, sigma_theta
 requirements.txt
 ```
 
-The CSV files are written by the notebook's simulator. They are included so you can see the
-data format without running anything.
+The CSV files are written by the notebook's simulator. `kind` (good / outlier / flip / missing)
+is only used for plotting; the filter never sees it.
 
 ## Quick start
 
@@ -33,40 +65,21 @@ pip install -r requirements.txt
 jupyter notebook ESKF_tutorial.ipynb
 ```
 
-Then run all cells from top to bottom (Kernel → Restart & Run All). The Monte Carlo
-consistency test near the end takes about 30 seconds.
+Then run all cells from top to bottom (Kernel → Restart & Run All). The Monte Carlo test in
+Section 12 and the tuning sweep in Section 11 take about a minute together.
 
-## What the notebook covers
+## Using your own estimator output
 
-1. Why filtering the *error* avoids the quaternion-covariance problem
-2. A small quaternion toolbox built one function at a time: [·]×, ⊗, Exp, Log, R(q), ⊞, ⊟
-3. True, nominal and error state
-4. Prediction: nominal kinematics, the error-state Jacobian `Fx`, how uncertainty grows without measurements, and a numerical check of `Fx`
-   (including which O(Δt²) terms Solà drops on purpose)
-5. Correction: update, injection and reset, with a 6D pose measurement model and a one-step demo
-6. A simulated dataset: 200 Hz IMU, 10 Hz 6D pose, and a 10 s measurement dropout
-7. Running the filter: errors with ±3σ bounds, bias estimation, comparison with IMU dead reckoning
-8. Monte Carlo **NEES** and **NIS** consistency tests
-
-## The filter in one table
-
-| step | nominal state `x = [p, v, q, a_b, ω_b]` | error state `δx = [δp, δv, δθ, δa_b, δω_b]` |
-|---|---|---|
-| IMU sample | integrate non-linear kinematics | `P ← Fx P Fxᵀ + Fi Qi Fiᵀ` |
-| measurement | – | `δx̂ = K r`, Joseph-form update of `P` |
-| inject | `p += δp, …, q ← q ⊗ Exp(δθ)` | – |
-| reset | – | `δx̂ ← 0`, `P ← G P Gᵀ` |
-
-## Using your own data
-
-Replace the CSV files in `data/` with your own logs (same column names) and skip the simulation
-cell. `ground_truth.csv` is optional: without it you can still evaluate the filter with the NIS
-test. Set the IMU noise parameters in `ESKFParams` from your IMU's datasheet or an Allan-variance
-analysis, and make sure the IMU and the pose refer to the same body frame.
+Replace `data/pose_estimates.csv` with the per-frame output of your estimator (same columns,
+`kind` can be left empty) and load it instead of calling the simulator. If your estimator reports
+no uncertainty, use constant values for `sigma_p` and `sigma_theta`. Without ground truth you can
+still judge the filter with the NIS test of Section 12. Adapt `SYMMETRIES` to your object.
 
 ## References
 
 * J. Solà, *Quaternion kinematics for the error-state Kalman filter*, 2017. [arXiv:1711.02508](https://arxiv.org/abs/1711.02508)
 * R. Labbe, *Kalman and Bayesian Filters in Python*. [GitHub](https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python)
 * Y. Bar-Shalom, X. R. Li, T. Kirubarajan, *Estimation with Applications to Tracking and Navigation*, Wiley, 2001.
+* H. E. Rauch, F. Tung, C. T. Striebel, *Maximum likelihood estimates of linear dynamic systems*, AIAA Journal, 1965.
 * J. Solà, J. Deray, D. Atchuthan, *A micro Lie theory for state estimation in robotics*, 2018. [arXiv:1812.01537](https://arxiv.org/abs/1812.01537)
+* F. Dellaert, M. Kaess, *Factor Graphs for Robot Perception*, Foundations and Trends in Robotics, 2017.
