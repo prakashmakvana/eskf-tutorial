@@ -13,7 +13,7 @@ J. Solà, [*Quaternion kinematics for the error-state Kalman filter*](https://ar
 ## Contents
 
 ```
-ESKF_tutorial.ipynb        the complete tutorial: theory, code, plots, consistency tests, exercises
+ESKF_tutorial.ipynb        the complete tutorial: theory, code, plots, consistency tests
 data/
   imu.csv                  t, ax, ay, az, wx, wy, wz               (body frame)
   pose_measurements.csv    t, px, py, pz, qw, qx, qy, qz
@@ -47,7 +47,6 @@ consistency test near the end takes about 30 seconds.
 6. A simulated dataset: 200 Hz IMU, 10 Hz 6D pose, and a 10 s measurement dropout
 7. Running the filter: errors with ±3σ bounds, bias estimation, comparison with IMU dead reckoning
 8. Monte Carlo **NEES** and **NIS** consistency tests
-9. Exercises: mistuning, observability, position-only updates, global vs local error, gravity estimation
 
 ## The filter in one table
 
