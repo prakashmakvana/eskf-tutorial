@@ -1,8 +1,9 @@
 # Error-State Kalman Filter (ESKF): a hands-on tutorial
 
 A single Jupyter notebook that builds an **Error-State Kalman Filter** for IMU + 6D pose fusion
-from first principles. Every equation is followed directly by its implementation, the Jacobians
-are verified numerically, the filter runs on a dataset, and its statistical consistency is tested.
+from first principles. The filter is written as a handful of short functions, each one right after
+its equation and followed by a small test. The Jacobians are verified numerically, the filter
+runs on a dataset, and its statistical consistency is tested.
 
 It is written in the spirit of Roger Labbe's
 [Kalman and Bayesian Filters in Python](https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python)
@@ -33,16 +34,16 @@ jupyter notebook ESKF_tutorial.ipynb
 ```
 
 Then run all cells from top to bottom (Kernel → Restart & Run All). The Monte Carlo
-consistency test near the end takes about 20 seconds.
+consistency test near the end takes about 30 seconds.
 
 ## What the notebook covers
 
 1. Why filtering the *error* avoids the quaternion-covariance problem
-2. A small quaternion toolbox: ⊗, Exp, Log, ⊞, ⊟
+2. A small quaternion toolbox built one function at a time: [·]×, ⊗, Exp, Log, R(q), ⊞, ⊟
 3. True, nominal and error state
-4. Prediction: nominal kinematics, the error-state Jacobian `Fx`, and a numerical check of `Fx`
+4. Prediction: nominal kinematics, the error-state Jacobian `Fx`, how uncertainty grows without measurements, and a numerical check of `Fx`
    (including which O(Δt²) terms Solà drops on purpose)
-5. Correction: update, injection and reset, with a 6D pose measurement model
+5. Correction: update, injection and reset, with a 6D pose measurement model and a one-step demo
 6. A simulated dataset: 200 Hz IMU, 10 Hz 6D pose, and a 10 s measurement dropout
 7. Running the filter: errors with ±3σ bounds, bias estimation, comparison with IMU dead reckoning
 8. Monte Carlo **NEES** and **NIS** consistency tests
