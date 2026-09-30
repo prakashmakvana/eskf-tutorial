@@ -1,8 +1,8 @@
 # Error-State Kalman Filter (ESKF): a hands-on tutorial
 
-A from-scratch, fully commented implementation of the **Error-State Kalman Filter** for
-IMU + 6D pose fusion, with a tutorial notebook that derives every equation, verifies the
-Jacobians numerically, runs the filter on a dataset and checks its statistical consistency.
+A single Jupyter notebook that builds an **Error-State Kalman Filter** for IMU + 6D pose fusion
+from first principles. Every equation is followed directly by its implementation, the Jacobians
+are verified numerically, the filter runs on a dataset, and its statistical consistency is tested.
 
 It is written in the spirit of Roger Labbe's
 [Kalman and Bayesian Filters in Python](https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python)
@@ -12,30 +12,43 @@ J. Solà, [*Quaternion kinematics for the error-state Kalman filter*](https://ar
 ## Contents
 
 ```
-ESKF_tutorial.ipynb        the tutorial (theory, code, plots, consistency tests, exercises)
-eskf/
-  quaternion.py            ⊗, Exp, Log, ⊞, ⊟, R(q)  (Hamilton, [w, x, y, z])
-  filter.py                ESKF: predict, update_pose, update_position, inject, reset
-  simulate.py              synthetic 200 Hz IMU + 10 Hz 6D pose dataset with a dropout
-  runner.py                runs the filter over time-stamped logs
-scripts/
-  generate_dataset.py      regenerate data/*.csv
-  run_eskf.py              run the filter on data/*.csv and plot the errors
+ESKF_tutorial.ipynb        the complete tutorial: theory, code, plots, consistency tests, exercises
 data/
   imu.csv                  t, ax, ay, az, wx, wy, wz               (body frame)
   pose_measurements.csv    t, px, py, pz, qw, qx, qy, qz
   ground_truth.csv         t, p, v, q, accel bias, gyro bias
+requirements.txt
 ```
+
+The CSV files are written by the notebook's simulator. They are included so you can see the
+data format without running anything.
 
 ## Quick start
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-jupyter notebook ESKF_tutorial.ipynb      # the tutorial
-python scripts/run_eskf.py                # or just run the filter on the CSV data
+jupyter notebook ESKF_tutorial.ipynb
 ```
 
-## The filter in one picture
+Then run all cells from top to bottom (Kernel → Restart & Run All). The Monte Carlo
+consistency test near the end takes about 20 seconds.
+
+## What the notebook covers
+
+1. Why filtering the *error* avoids the quaternion-covariance problem
+2. A small quaternion toolbox: ⊗, Exp, Log, ⊞, ⊟
+3. True, nominal and error state
+4. Prediction: nominal kinematics, the error-state Jacobian `Fx`, and a numerical check of `Fx`
+   (including which O(Δt²) terms Solà drops on purpose)
+5. Correction: update, injection and reset, with a 6D pose measurement model
+6. A simulated dataset: 200 Hz IMU, 10 Hz 6D pose, and a 10 s measurement dropout
+7. Running the filter: errors with ±3σ bounds, bias estimation, comparison with IMU dead reckoning
+8. Monte Carlo **NEES** and **NIS** consistency tests
+9. Exercises: mistuning, observability, position-only updates, global vs local error, gravity estimation
+
+## The filter in one table
 
 | step | nominal state `x = [p, v, q, a_b, ω_b]` | error state `δx = [δp, δv, δθ, δa_b, δω_b]` |
 |---|---|---|
@@ -44,26 +57,12 @@ python scripts/run_eskf.py                # or just run the filter on the CSV da
 | inject | `p += δp, …, q ← q ⊗ Exp(δθ)` | – |
 | reset | – | `δx̂ ← 0`, `P ← G P Gᵀ` |
 
-The orientation error `δθ` is a minimal 3-vector in the local (body) frame, so the covariance
-is 15×15 and never singular, and a 6D pose measurement has the simple Jacobian
-`H = [I 0 0 0 0; 0 0 I 0 0]` with residual `[p_m − p ; Log(q* ⊗ q_m)]`.
-
-## What the notebook shows
-
-* why filtering the *error* avoids the quaternion-covariance problem
-* the error-state Jacobian `Fx`, checked against finite differences (and which O(Δt²) terms Solà drops)
-* fusion of a 200 Hz IMU with 10 Hz pose measurements, including a 10 s measurement dropout
-* bias estimation and its observability
-* comparison against pure IMU dead reckoning
-* Monte Carlo **NEES** and **NIS** consistency tests
-* exercises: mistuning, observability, position-only updates, global vs local error, gravity estimation
-
 ## Using your own data
 
-Replace the CSV files in `data/` with your own logs (same column names). `ground_truth.csv` is
-optional: without it you can still evaluate the filter with the NIS test. Set the IMU noise
-parameters in `ESKFParams` from your IMU's datasheet or an Allan-variance analysis, and make
-sure the IMU and the pose refer to the same body frame (or add the extrinsic calibration).
+Replace the CSV files in `data/` with your own logs (same column names) and skip the simulation
+cell. `ground_truth.csv` is optional: without it you can still evaluate the filter with the NIS
+test. Set the IMU noise parameters in `ESKFParams` from your IMU's datasheet or an Allan-variance
+analysis, and make sure the IMU and the pose refer to the same body frame.
 
 ## References
 
