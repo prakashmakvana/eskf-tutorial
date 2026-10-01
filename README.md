@@ -14,6 +14,17 @@ It is written in the spirit of Roger Labbe's
 and follows the notation of J. Solà,
 [*Quaternion kinematics for the error-state Kalman filter*](https://arxiv.org/abs/1711.02508) (2017).
 
+## What each part of the filter is for
+
+| problem of a per-frame estimator | part of the ESKF |
+|---|---|
+| jitter | prediction and the Kalman gain: blending prediction with measurement averages out random error |
+| frames of varying quality | a per-frame measurement noise `V_k`: a clear close-range frame gets more weight than a turbid one |
+| symmetry flips | choosing the symmetric solution closest to the prediction |
+| outliers | NIS (Mahalanobis) gating |
+| dropouts | prediction alone, with an honestly growing covariance |
+| orientation is not a vector | the error state: a minimal 3-vector `δθ`, and a simple Jacobian for a 6D pose |
+
 ## Results on the simulated sequence
 
 | | pos RMSE | rot RMSE | pos jitter | rot jitter |
@@ -21,7 +32,6 @@ and follows the notation of J. Solà,
 | raw per-frame estimates | 6.78 cm | 14.71° | 9.40 cm | 52.24° |
 | naive filter (accepts every estimate) | 2.20 cm | 14.59° | 0.77 cm | 6.11° |
 | robust ESKF (symmetry + gating) | 1.55 cm | 2.88° | 0.41 cm | 0.78° |
-| RTS smoother (offline, uses future frames) | 0.55 cm | 0.99° | 0.02 cm | 0.06° |
 
 Jitter measures how much the frame-to-frame motion of a track differs from the true
 frame-to-frame motion. Rotation errors are measured up to the object's symmetry.
@@ -40,8 +50,7 @@ frame-to-frame motion. Rotation errors are measured up to the object's symmetry.
 10. Results: accuracy, jitter and honest ±3σ bounds
 11. Tuning the process noise: smoothness versus lag
 12. Consistency tests with NEES and NIS
-13. Filter versus RTS smoother, and the link to factor-graph optimisation
-14. Summary and references
+13. Summary and references
 
 ## Files
 
@@ -65,8 +74,8 @@ pip install -r requirements.txt
 jupyter notebook ESKF_tutorial.ipynb
 ```
 
-Then run all cells from top to bottom (Kernel → Restart & Run All). The Monte Carlo test in
-Section 12 and the tuning sweep in Section 11 take about a minute together.
+Then run all cells from top to bottom (Kernel → Restart & Run All). The tuning sweep in
+Section 11 and the Monte Carlo test in Section 12 take about a minute together.
 
 ## Using your own estimator output
 
@@ -80,6 +89,4 @@ still judge the filter with the NIS test of Section 12. Adapt `SYMMETRIES` to yo
 * J. Solà, *Quaternion kinematics for the error-state Kalman filter*, 2017. [arXiv:1711.02508](https://arxiv.org/abs/1711.02508)
 * R. Labbe, *Kalman and Bayesian Filters in Python*. [GitHub](https://github.com/rlabbe/Kalman-and-Bayesian-Filters-in-Python)
 * Y. Bar-Shalom, X. R. Li, T. Kirubarajan, *Estimation with Applications to Tracking and Navigation*, Wiley, 2001.
-* H. E. Rauch, F. Tung, C. T. Striebel, *Maximum likelihood estimates of linear dynamic systems*, AIAA Journal, 1965.
 * J. Solà, J. Deray, D. Atchuthan, *A micro Lie theory for state estimation in robotics*, 2018. [arXiv:1812.01537](https://arxiv.org/abs/1812.01537)
-* F. Dellaert, M. Kaess, *Factor Graphs for Robot Perception*, Foundations and Trends in Robotics, 2017.
