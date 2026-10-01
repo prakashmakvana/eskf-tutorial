@@ -29,12 +29,27 @@ and follows the notation of J. Solà,
 
 | | pos RMSE | rot RMSE | pos jitter | rot jitter |
 |---|---|---|---|---|
-| raw per-frame estimates | 6.78 cm | 14.71° | 9.40 cm | 52.24° |
-| naive filter (accepts every estimate) | 2.20 cm | 14.59° | 0.77 cm | 6.11° |
-| robust ESKF (symmetry + gating) | 1.55 cm | 2.88° | 0.41 cm | 0.78° |
+| raw per-frame estimates | 6.79 cm | 14.70° | 9.40 cm | 52.17° |
+| naive filter (accepts every estimate) | 2.28 cm | 14.50° | 0.76 cm | 6.00° |
+| robust ESKF (symmetry + gating) | 1.66 cm | 3.14° | 0.39 cm | 0.79° |
 
 Jitter measures how much the frame-to-frame motion of a track differs from the true
 frame-to-frame motion. Rotation errors are measured up to the object's symmetry.
+
+## How the code is organised
+
+The notebook defines a few small types rather than passing loose arrays and tuples around, so
+the same metrics and plots work on every filter variant without change:
+
+| type | what it holds |
+|---|---|
+| `Pose` | one 6D pose: `p`, `q` |
+| `Estimate` | what the estimator reports for one frame: pose, its own `sigma_p` / `sigma_theta`, validity |
+| `Truth` | the true trajectory |
+| `State` | the nominal state: `p`, `v`, `q`, `w` |
+| `Track` | a sequence of poses: the raw estimates, or the output of any filter |
+| `FilterResult` | states, covariances, per-frame status and NIS |
+| `SimConfig`, `MotionParams` | the simulation settings and the process noise |
 
 ## Contents of the notebook
 
